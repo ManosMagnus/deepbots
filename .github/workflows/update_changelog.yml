@@ -1,0 +1,55 @@
+name: Generate Changelog
+on:
+  pull_request:
+    types: [closed]
+
+  release:
+    types: [published]
+
+jobs:
+  wait_until_finish:
+    name: Wait until closed issue changelog generator finish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait until closed issue updade changelog finish
+        uses: convictional/trigger-workflow-and-wait@v1.3.0
+        with:
+          owner: aidudezzz
+          repo: deepbots
+          github_token: ${{ secrets.AIDUDEZZ_BOT_TOKEN }}
+          workflow_file_name: update_changelog_closed_issue.yml
+          ref: dev
+          wait_interval: 10
+          inputs: "{}"
+          propagate_failure: false
+          trigger_workflow: true
+          wait_workflow: true
+
+  generate_changelog:
+    name: Update Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout dev
+        uses: actions/checkout@v2
+        with:
+          ref: dev
+
+      - name: Generate changelog
+        uses: charmixer/auto-changelog-action@v1.1
+        with:
+          token: ${{ secrets.AIDUDEZZ_BOT_TOKEN }}
+
+      - name: Commit files
+        env:
+          CI_USER: ${{ secrets.AIDUDEZZZ_BOT_USER }}
+          CI_EMAIL: ${{ secrets.AIDUDEZZZ_BOT_EMAIL }}
+        run: |
+          git config --local user.email ${{ secrets.AIDUDEZZZ_BOT_EMAIL }}
+          git config --local user.name ${{ secrets.AIDUDEZZZ_BOT_USER }}
+          git add CHANGELOG.md && git commit -m 'Updated CHANGELOG.md' && echo "push=true" >> $GITHUB_ENV || echo "No changes to CHANGELOG.md"
+      - name: Push changes
+        if: env.push == 'true'
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.AIDUDEZZ_BOT_TOKEN }}
+          branch: dev
